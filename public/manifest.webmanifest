@@ -1,14 +1,15 @@
 {
   "name": "JJ's Finance Tracker",
   "short_name": "JJ Tracker",
-  "start_url": "/",
+  "start_url": "/jj-finance-tracker/",
+  "scope": "/jj-finance-tracker/",
   "display": "standalone",
   "background_color": "#f7f3eb",
   "theme_color": "#0f172a",
   "description": "Private paycheck and bill tracker for Jennifer.",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/jj-finance-tracker/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
