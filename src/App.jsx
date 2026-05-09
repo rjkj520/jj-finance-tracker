@@ -40,6 +40,18 @@ const selectAllProps = {
   onFocus: (e) => e.target.select(),
   onClick: (e) => e.currentTarget.select(),
 };
+const sanitizeMoneyInput = (value) => {
+  const cleaned = String(value).replace(/[^\d.]/g, '');
+  const parts = cleaned.split('.');
+  if (parts.length <= 1) return cleaned;
+  return parts[0] + '.' + parts.slice(1).join('');
+};
+const moneyStringFromNumber = (value) => (Number(value) === 0 ? '' : String(value));
+const moneyNumberFromString = (value) => {
+  if (value === '' || value === '.') return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const makeIcon = (symbol) => ({ className = '' }) => (
   <span className={className} aria-hidden="true">
@@ -48,7 +60,6 @@ const makeIcon = (symbol) => ({ className = '' }) => (
 );
 
 const AlertCircle = makeIcon('!');
-const Bell = makeIcon('🔔');
 const CalendarDays = makeIcon('📅');
 const CarFront = makeIcon('🚗');
 const Check = makeIcon('✓');
@@ -62,7 +73,6 @@ const Fuel = makeIcon('⛽');
 const HandCoins = makeIcon('🪙');
 const House = makeIcon('🏠');
 const Landmark = makeIcon('🏦');
-const Link = makeIcon('🔗');
 const Pencil = makeIcon('✎');
 const PiggyBank = makeIcon('🐖');
 const Plus = makeIcon('+');
@@ -403,18 +413,18 @@ function TopListBar({ title, value, onAdd, addLabel }) {
 }
 
 function BillDialog({ state, setState, onSave }) {
-  const [draft, setDraft] = useState({ id: uid(), name: '', dueDay: 1, amount: 0, status: 'Pending' });
+  const [draft, setDraft] = useState({ id: uid(), name: '', dueDay: 1, amount: '', status: 'Pending' });
 
   useEffect(() => {
-    if (state.open) setDraft(state.item ?? { id: uid(), name: '', dueDay: 1, amount: 0, status: 'Pending' });
+    if (state.open) setDraft(state.item ? { ...state.item, amount: moneyStringFromNumber(state.item.amount) } : { id: uid(), name: '', dueDay: 1, amount: '', status: 'Pending' });
   }, [state]);
 
   return (
-    <Modal open={state.open} title={state.item ? 'Edit Bill' : 'Add Bill'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave(draft); setState({ open: false, item: null }); }}>Save</AppButton>}>
+    <Modal open={state.open} title={state.item ? 'Edit Bill' : 'Add Bill'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave({ ...draft, amount: moneyNumberFromString(draft.amount) }); setState({ open: false, item: null }); }}>Save</AppButton>}>
       <div className="space-y-4">
         <Field label="Bill Name"><AppInput value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
         <Field label="Due Day"><AppInput type="number" min={1} max={31} {...selectAllProps} value={draft.dueDay} onChange={(e) => setDraft({ ...draft, dueDay: Number(e.target.value) })} /></Field>
-        <Field label="Amount"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.amount)} onChange={(e) => setDraft({ ...draft, amount: parseNumberInput(e.target.value) })} /></Field>
+        <Field label="Amount"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: sanitizeMoneyInput(e.target.value) })} /></Field>
         <label className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm">
           <span>Status Paid</span>
           <input type="checkbox" checked={draft.status === 'Paid'} onChange={(e) => setDraft({ ...draft, status: e.target.checked ? 'Paid' : 'Pending' })} />
@@ -425,20 +435,20 @@ function BillDialog({ state, setState, onSave }) {
 }
 
 function DebtDialog({ state, setState, onSave }) {
-  const [draft, setDraft] = useState({ id: uid(), name: '', dueDay: 1, minPayment: 0, interestRate: 0, balance: 0, status: 'Pending' });
+  const [draft, setDraft] = useState({ id: uid(), name: '', dueDay: 1, minPayment: '', interestRate: '', balance: '', status: 'Pending' });
 
   useEffect(() => {
-    if (state.open) setDraft(state.item ?? { id: uid(), name: '', dueDay: 1, minPayment: 0, interestRate: 0, balance: 0, status: 'Pending' });
+    if (state.open) setDraft(state.item ? { ...state.item, minPayment: moneyStringFromNumber(state.item.minPayment), interestRate: moneyStringFromNumber(state.item.interestRate), balance: moneyStringFromNumber(state.item.balance) } : { id: uid(), name: '', dueDay: 1, minPayment: '', interestRate: '', balance: '', status: 'Pending' });
   }, [state]);
 
   return (
-    <Modal open={state.open} title={state.item ? 'Edit Debt' : 'Add Debt'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave(draft); setState({ open: false, item: null }); }}>Save</AppButton>}>
+    <Modal open={state.open} title={state.item ? 'Edit Debt' : 'Add Debt'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave({ ...draft, minPayment: moneyNumberFromString(draft.minPayment), interestRate: moneyNumberFromString(draft.interestRate), balance: moneyNumberFromString(draft.balance) }); setState({ open: false, item: null }); }}>Save</AppButton>}>
       <div className="space-y-4">
         <Field label="Debt Name"><AppInput value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
         <Field label="Due Day"><AppInput type="number" min={1} max={31} {...selectAllProps} value={draft.dueDay} onChange={(e) => setDraft({ ...draft, dueDay: Number(e.target.value) })} /></Field>
-        <Field label="Minimum Payment"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.minPayment)} onChange={(e) => setDraft({ ...draft, minPayment: parseNumberInput(e.target.value) })} /></Field>
-        <Field label="Interest Rate"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.interestRate)} onChange={(e) => setDraft({ ...draft, interestRate: parseNumberInput(e.target.value) })} /></Field>
-        <Field label="Current Balance"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.balance)} onChange={(e) => setDraft({ ...draft, balance: parseNumberInput(e.target.value) })} /></Field>
+        <Field label="Minimum Payment"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.minPayment} onChange={(e) => setDraft({ ...draft, minPayment: sanitizeMoneyInput(e.target.value) })} /></Field>
+        <Field label="Interest Rate"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.interestRate} onChange={(e) => setDraft({ ...draft, interestRate: sanitizeMoneyInput(e.target.value) })} /></Field>
+        <Field label="Current Balance"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.balance} onChange={(e) => setDraft({ ...draft, balance: sanitizeMoneyInput(e.target.value) })} /></Field>
         <label className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm">
           <span>Status Paid</span>
           <input type="checkbox" checked={draft.status === 'Paid'} onChange={(e) => setDraft({ ...draft, status: e.target.checked ? 'Paid' : 'Pending' })} />
@@ -449,18 +459,18 @@ function DebtDialog({ state, setState, onSave }) {
 }
 
 function ExpenseDialog({ state, setState, onSave }) {
-  const [draft, setDraft] = useState({ id: uid(), name: '', day: 1, amount: 0, assignedPaycheck: '' });
+  const [draft, setDraft] = useState({ id: uid(), name: '', day: 1, amount: '', assignedPaycheck: '' });
 
   useEffect(() => {
-    if (state.open) setDraft(state.item ?? { id: uid(), name: '', day: 1, amount: 0, assignedPaycheck: '' });
+    if (state.open) setDraft(state.item ? { ...state.item, amount: moneyStringFromNumber(state.item.amount) } : { id: uid(), name: '', day: 1, amount: '', assignedPaycheck: '' });
   }, [state]);
 
   return (
-    <Modal open={state.open} title={state.item ? 'Edit Expense' : 'Add Expense'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave(draft); setState({ open: false, item: null }); }}>Save</AppButton>}>
+    <Modal open={state.open} title={state.item ? 'Edit Expense' : 'Add Expense'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave({ ...draft, amount: moneyNumberFromString(draft.amount) }); setState({ open: false, item: null }); }}>Save</AppButton>}>
       <div className="space-y-4">
         <Field label="Expense Name / Type"><AppInput value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
         <Field label="Day"><AppInput type="number" min={1} max={31} {...selectAllProps} value={draft.day} onChange={(e) => setDraft({ ...draft, day: Number(e.target.value) })} /></Field>
-        <Field label="Amount"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.amount)} onChange={(e) => setDraft({ ...draft, amount: parseNumberInput(e.target.value) })} /></Field>
+        <Field label="Amount"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: sanitizeMoneyInput(e.target.value) })} /></Field>
         <Field label="Assigned Paycheck">
           <select className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm" value={draft.assignedPaycheck || 'unassigned'} onChange={(e) => setDraft({ ...draft, assignedPaycheck: e.target.value === 'unassigned' ? '' : e.target.value })}>
             <option value="unassigned">Unassigned</option>
@@ -473,32 +483,32 @@ function ExpenseDialog({ state, setState, onSave }) {
 }
 
 function PaycheckDialog({ state, setState, settings, onSave }) {
-  const [draft, setDraft] = useState({ baseIncome: 0, extraIncome: 0, extraDebtActual: 0 });
+  const [draft, setDraft] = useState({ baseIncome: '', extraIncome: '', extraDebtActual: '' });
 
   useEffect(() => {
-    if (state.open && state.item) setDraft(settings[state.item]);
+    if (state.open && state.item) setDraft({ baseIncome: moneyStringFromNumber(settings[state.item].baseIncome), extraIncome: moneyStringFromNumber(settings[state.item].extraIncome), extraDebtActual: moneyStringFromNumber(settings[state.item].extraDebtActual) });
   }, [state, settings]);
 
   return (
-    <Modal open={state.open} title={state.item ? `Edit ${state.item}` : 'Edit Paycheck'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { if (!state.item) return; onSave(state.item, draft); setState({ open: false, item: null }); }}>Save</AppButton>}>
+    <Modal open={state.open} title={state.item ? `Edit ${state.item}` : 'Edit Paycheck'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { if (!state.item) return; onSave(state.item, { baseIncome: moneyNumberFromString(draft.baseIncome), extraIncome: moneyNumberFromString(draft.extraIncome), extraDebtActual: moneyNumberFromString(draft.extraDebtActual) }); setState({ open: false, item: null }); }}>Save</AppButton>}>
       <div className="space-y-4">
-        <Field label="Base Income"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.baseIncome)} onChange={(e) => setDraft({ ...draft, baseIncome: parseNumberInput(e.target.value) })} /></Field>
-        <Field label="Extra Income (This Month)"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.extraIncome)} onChange={(e) => setDraft({ ...draft, extraIncome: parseNumberInput(e.target.value) })} /></Field>
-        <Field label="Extra Debt Applied (This Month)"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.extraDebtActual)} onChange={(e) => setDraft({ ...draft, extraDebtActual: parseNumberInput(e.target.value) })} /></Field>
+        <Field label="Base Income"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.baseIncome} onChange={(e) => setDraft({ ...draft, baseIncome: sanitizeMoneyInput(e.target.value) })} /></Field>
+        <Field label="Extra Income (This Month)"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.extraIncome} onChange={(e) => setDraft({ ...draft, extraIncome: sanitizeMoneyInput(e.target.value) })} /></Field>
+        <Field label="Extra Debt Applied (This Month)"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.extraDebtActual} onChange={(e) => setDraft({ ...draft, extraDebtActual: sanitizeMoneyInput(e.target.value) })} /></Field>
       </div>
     </Modal>
   );
 }
 
 function AccountDialog({ state, setState, onSave, paycheckAccountMap, onAssignPaycheck }) {
-  const [draft, setDraft] = useState({ id: uid(), name: '', type: 'Checking', openingBalance: 0 });
+  const [draft, setDraft] = useState({ id: uid(), name: '', type: 'Checking', openingBalance: '' });
 
   useEffect(() => {
-    if (state.open) setDraft(state.item ?? { id: uid(), name: '', type: 'Checking', openingBalance: 0 });
+    if (state.open) setDraft(state.item ? { ...state.item, openingBalance: moneyStringFromNumber(state.item.openingBalance) } : { id: uid(), name: '', type: 'Checking', openingBalance: '' });
   }, [state]);
 
   return (
-    <Modal open={state.open} title={state.item ? 'Edit Account' : 'Add Account'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave(draft); setState({ open: false, item: null }); }}>Save</AppButton>}>
+    <Modal open={state.open} title={state.item ? 'Edit Account' : 'Add Account'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave({ ...draft, openingBalance: moneyNumberFromString(draft.openingBalance) }); setState({ open: false, item: null }); }}>Save</AppButton>}>
       <div className="space-y-4">
         <Field label="Account Name"><AppInput value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
         <Field label="Account Type">
@@ -507,7 +517,7 @@ function AccountDialog({ state, setState, onSave, paycheckAccountMap, onAssignPa
             <option value="Savings">Savings</option>
           </select>
         </Field>
-        <Field label="Account Balance"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.openingBalance)} onChange={(e) => setDraft({ ...draft, openingBalance: parseNumberInput(e.target.value) })} /></Field>
+        <Field label="Account Balance"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.openingBalance} onChange={(e) => setDraft({ ...draft, openingBalance: sanitizeMoneyInput(e.target.value) })} /></Field>
         {state.item ? (
           <div className="space-y-2">
             <div className="text-sm font-medium">Linked Paychecks</div>
@@ -532,18 +542,18 @@ function AccountDialog({ state, setState, onSave, paycheckAccountMap, onAssignPa
 }
 
 function CustomPaycheckDialog({ state, setState, accounts, onSave }) {
-  const [draft, setDraft] = useState({ id: uid(), name: '', payDay: 1, amount: 0, accountId: accounts[0]?.id || '' });
+  const [draft, setDraft] = useState({ id: uid(), name: '', payDay: 1, amount: '', accountId: accounts[0]?.id || '' });
 
   useEffect(() => {
-    if (state.open) setDraft(state.item ?? { id: uid(), name: '', payDay: 1, amount: 0, accountId: accounts[0]?.id || '' });
+    if (state.open) setDraft(state.item ? { ...state.item, amount: moneyStringFromNumber(state.item.amount) } : { id: uid(), name: '', payDay: 1, amount: '', accountId: accounts[0]?.id || '' });
   }, [state, accounts]);
 
   return (
-    <Modal open={state.open} title={state.item ? 'Edit Check' : 'Add Check'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave(draft); setState({ open: false, item: null }); }}>Save</AppButton>}>
+    <Modal open={state.open} title={state.item ? 'Edit Check' : 'Add Check'} onClose={() => setState({ open: false, item: null })} footer={<AppButton className="w-full" onClick={() => { onSave({ ...draft, amount: moneyNumberFromString(draft.amount) }); setState({ open: false, item: null }); }}>Save</AppButton>}>
       <div className="space-y-4">
         <Field label="Check Name"><AppInput value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
         <Field label="Pay Day"><AppInput type="number" min={1} max={31} {...selectAllProps} value={draft.payDay} onChange={(e) => setDraft({ ...draft, payDay: Number(e.target.value) })} /></Field>
-        <Field label="Amount"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={toInputValue(draft.amount)} onChange={(e) => setDraft({ ...draft, amount: parseNumberInput(e.target.value) })} /></Field>
+        <Field label="Amount"><AppInput type="text" inputMode="decimal" {...selectAllProps} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: sanitizeMoneyInput(e.target.value) })} /></Field>
         <Field label="Linked Account">
           <select className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm" value={draft.accountId} onChange={(e) => setDraft({ ...draft, accountId: e.target.value })}>
             {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
@@ -569,12 +579,7 @@ export default function App() {
   const [history, setHistory] = useState(initialState.history);
   const [billsFilter, setBillsFilter] = useState('All');
   const [activeTab, setActiveTab] = useState('bills');
-  const [focusedPaycheck, setFocusedPaycheck] = useState(null);
-  const [notificationPermissionState, setNotificationPermissionState] = useState(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
-    return Notification.permission;
-  });
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+    const [isOnline, setIsOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   const [isStandalone, setIsStandalone] = useState(() => {
     if (typeof window === 'undefined') return false;
     return Boolean(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
@@ -593,12 +598,10 @@ export default function App() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const routeTab = params.get('tab');
-    const routePaycheck = params.get('paycheck');
     const routeMonth = getRouteMonth(params);
 
     if (tabOrder.includes(routeTab)) setActiveTab(routeTab);
     if (routeMonth) setCurrentMonth(routeMonth);
-    setFocusedPaycheck(paycheckOrder.includes(routePaycheck) ? routePaycheck : null);
   }, []);
 
   useEffect(() => {
@@ -697,6 +700,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    resetAppRoute();
+  }, [activeTab, currentMonth]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(
       STORAGE_KEY,
@@ -714,55 +721,15 @@ export default function App() {
     );
   }, [currentMonth, bills, debts, expenses, paycheckSettings, accounts, paycheckAccountMap, customPaychecks, history]);
 
-  const openDueView = (paycheck, targetMonth = currentMonth) => {
-    setActiveTab('dashboard');
-    setFocusedPaycheck(paycheck);
-    setCurrentMonth(new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1));
+  const resetAppRoute = () => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', 'dashboard');
-    url.searchParams.set('month', String(targetMonth.getMonth() + 1));
-    url.searchParams.set('year', String(targetMonth.getFullYear()));
-    if (paycheck) {
-      url.searchParams.set('paycheck', paycheck);
-      url.searchParams.set('view', 'due');
-    } else {
-      url.searchParams.delete('paycheck');
-      url.searchParams.delete('view');
-    }
+    url.searchParams.set('tab', activeTab);
+    url.searchParams.set('month', String(currentMonth.getMonth() + 1));
+    url.searchParams.set('year', String(currentMonth.getFullYear()));
+    url.searchParams.delete('paycheck');
+    url.searchParams.delete('view');
     window.history.replaceState({}, '', url.toString());
-  };
-
-  const buildDueLink = (paycheck, targetMonth = currentMonth) => {
-    if (typeof window === 'undefined') return '';
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', 'dashboard');
-    url.searchParams.set('month', String(targetMonth.getMonth() + 1));
-    url.searchParams.set('year', String(targetMonth.getFullYear()));
-    url.searchParams.set('paycheck', paycheck);
-    url.searchParams.set('view', 'due');
-    return url.toString();
-  };
-
-  const copyDueLink = async (paycheck, targetMonth = currentMonth) => {
-    const link = buildDueLink(paycheck, targetMonth);
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      window.alert('Due-view link copied.');
-    } catch {
-      window.alert('Could not copy the due-view link on this device.');
-    }
-  };
-
-  const requestNotificationAccess = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotificationPermissionState('unsupported');
-      window.alert('Notifications are not supported on this device/browser.');
-      return;
-    }
-    const result = await Notification.requestPermission();
-    setNotificationPermissionState(result);
   };
 
   const requestPersistentStorage = async () => {
@@ -835,18 +802,6 @@ export default function App() {
     displayBalance: debtGroups.firstRowByName.get(debt.name) === debt.id ? debtGroups.sharedBalanceByName.get(debt.name) || 0 : 0,
   })).sort((a, b) => a.dueDay - b.dueDay), [debts, currentMonth, debtGroups]);
 
-  const dueSummaryByPaycheck = useMemo(() => paycheckOrder.reduce((acc, paycheck) => {
-    const billsForPaycheck = assignedBills.filter((bill) => bill.assignedPaycheck === paycheck);
-    const debtsForPaycheck = visibleDebts.filter((debt) => debt.assignedPaycheck === paycheck);
-    acc[paycheck] = {
-      bills: billsForPaycheck,
-      debts: debtsForPaycheck,
-      total: billsForPaycheck.reduce((sum, bill) => sum + bill.amount, 0) + debtsForPaycheck.reduce((sum, debt) => sum + debt.minPayment, 0),
-    };
-    return acc;
-  }, {}), [assignedBills, visibleDebts]);
-
-  const focusedDueSummary = focusedPaycheck ? dueSummaryByPaycheck[focusedPaycheck] : null;
 
   const paycheckCards = useMemo(() => paycheckOrder.map((name) => {
     const income = incomes[name];
@@ -1288,65 +1243,23 @@ export default function App() {
           <div className="space-y-4 pt-4">
             <AppCard style={{ backgroundColor: tabThemes.dashboard.tint }}><AppCardContent><div className="text-sm font-semibold" style={{ color: tabThemes.dashboard.accent }}>Paychecks Overview</div><div className="mt-1 text-sm text-slate-600">Jennifer is anchored to April 30, 2026 and repeats every 14 days from there. The app labels the Jennifer checks inside each month as Jennifer #1, #2, and #3.</div></AppCardContent></AppCard>
             <AppCard>
-              <AppCardHeader><div className="flex items-center gap-2 text-base font-semibold"><Bell className="h-4 w-4" /> Notification Setup</div></AppCardHeader>
+              <AppCardHeader><div className="text-base font-semibold">Jennifer’s Phone Setup</div></AppCardHeader>
               <AppCardContent className="space-y-3 text-sm text-slate-600">
-                <div>This app is prepared for paycheck reminders. A hosted reminder or phone automation can open the due view for a paycheck date.</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <AppBadge className="border-slate-300 bg-white text-slate-700">Permission: {notificationPermissionState}</AppBadge>
-                  <AppButton variant="outline" onClick={requestNotificationAccess}><Bell className="mr-1 h-4 w-4" /> Allow Notifications</AppButton>
-                  <AppButton variant="outline" onClick={() => openDueView(null)}><X className="mr-1 h-4 w-4" /> Clear Due View</AppButton>
-                </div>
-              </AppCardContent>
-            </AppCard>
-
-            <AppCard>
-              <AppCardHeader><div className="text-base font-semibold">Apple Shortcuts Setup</div></AppCardHeader>
-              <AppCardContent className="space-y-3 text-sm text-slate-600">
-                <div>These links are month-specific, so each Shortcut opens the right paycheck and the right month.</div>
-                <div className="space-y-2">
-                  {paycheckCards.filter((card) => card.active && card.payDate).map((card) => (
-                    <div key={`shortcut-${card.name}`} className="rounded-2xl bg-slate-50 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <PaycheckPill paycheck={card.name} />
-                            <span className="text-xs text-slate-500">{fmtShortDate(card.payDate)}</span>
-                          </div>
-                          <div className="mt-2 text-sm text-slate-500">Due total: {currency(dueSummaryByPaycheck[card.name]?.total || 0)}</div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <AppButton size="sm" variant="outline" onClick={() => openDueView(card.name, currentMonth)}>Open</AppButton>
-                          <AppButton size="sm" variant="outline" onClick={() => copyDueLink(card.name, currentMonth)}>Copy Shortcut Link</AppButton>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div>This version is set up to be simple and app-like, without notifications or Shortcut reminders.</div>
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <div className="font-medium text-slate-700">How Jennifer should install it</div>
+                  <div className="mt-2 space-y-1 text-xs text-slate-500">
+                    <div>1. Open the hosted link in Safari on iPhone.</div>
+                    <div>2. Tap Share.</div>
+                    <div>3. Tap Add to Home Screen.</div>
+                    <div>4. Open it from the new phone icon like an app.</div>
+                  </div>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-                  In iPhone Shortcuts, create a Time of Day personal automation on each paycheck date, add Open URLs, then paste the copied paycheck link.
+                  Her data will save on her phone for this site. After the app is hosted, export a backup from your version and import it on her phone if needed.
                 </div>
               </AppCardContent>
             </AppCard>
-
-            {focusedPaycheck && focusedDueSummary ? (
-              <AppCard>
-                <AppCardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-base font-semibold">Due for {focusedPaycheck}</div>
-                      <div className="mt-1 text-sm text-slate-500">This is the screen a reminder link would open.</div>
-                    </div>
-                    <AppButton size="icon" variant="outline" onClick={() => openDueView(null)}><X className="h-4 w-4" /></AppButton>
-                  </div>
-                </AppCardHeader>
-                <AppCardContent className="space-y-3">
-                  <div className="rounded-2xl bg-slate-50 p-3"><div className="text-slate-500">Total Due</div><div className="text-lg font-bold">{currency(focusedDueSummary.total)}</div></div>
-                  {focusedDueSummary.bills.length ? <div className="space-y-2"><div className="text-sm font-semibold">Bills</div>{focusedDueSummary.bills.map((bill) => <div key={bill.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3"><div><NameWithIcon name={bill.name} className="font-medium" /><div className="text-xs text-slate-500">Due day {bill.dueDay}</div></div><div className="font-semibold">{currency(bill.amount)}</div></div>)}</div> : null}
-                  {focusedDueSummary.debts.length ? <div className="space-y-2"><div className="text-sm font-semibold">Debt</div>{focusedDueSummary.debts.map((debt) => <div key={debt.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3"><div><NameWithIcon name={debt.name} className="font-medium" /><div className="text-xs text-slate-500">Due day {debt.dueDay}</div></div><div className="font-semibold">{currency(debt.minPayment)}</div></div>)}</div> : null}
-                  {!focusedDueSummary.bills.length && !focusedDueSummary.debts.length ? <div className="rounded-2xl bg-slate-50 p-3 text-slate-500">Nothing is currently due on this paycheck date.</div> : null}
-                </AppCardContent>
-              </AppCard>
-            ) : null}
 
             <TopListBar title="Extra Checks This Month" value={`${customPaychecks.length}`} onAdd={() => setCustomPaycheckDialog({ open: true, item: null })} addLabel="Add Check" />
 
@@ -1387,10 +1300,7 @@ export default function App() {
                               <Stat label="Extra Debt Entered" value={currency(card.actualExtraDebtAmount)} />
                             </div>
                             <div className="rounded-2xl bg-slate-50 p-3"><div className="text-slate-500">Suggested Extra Debt</div><div className="font-semibold">{currency(card.suggestedExtraDebtAmount)}</div><div className="mt-1 text-xs text-slate-500">Target: {card.extraDebtTarget || 'None'}</div></div>
-                            <div className="flex flex-wrap gap-2">
-                              <AppButton size="sm" variant="outline" onClick={() => openDueView(card.name)}><Bell className="mr-1 h-3.5 w-3.5" /> Open Due View</AppButton>
-                              <AppButton size="sm" variant="outline" onClick={() => copyDueLink(card.name)}><Link className="mr-1 h-3.5 w-3.5" /> Copy Due Link</AppButton>
-                            </div>
+                            
                           </div>
                         ) : <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-500">No paycheck this month.</div>}
                       </AppCardContent>
